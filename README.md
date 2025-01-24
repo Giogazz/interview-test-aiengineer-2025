@@ -1,14 +1,13 @@
 # Technical interview
 This repository contains the starting files for the technical interview for the AI Engineer applications at TXT Arcan.
 
-Applicants should fork this repository, complete the test, and submit the output to the hiring manager.
-
+Applicants should fork this repository, complete the test, and submit the output to the hiring manager/HR contact.
 
 ## The task
 ### Goal
-The goal is to study, design and implement a machine learning model that predicts change propagation in a software repository.
+The goal is to *study*, design and implement a machine learning model that predicts change propagation in a software repository.
 
-Change propagation is loosely defined as a file that is forced to change due to another file changing, and it's typically caused by coupling (either logical or static). For instance, a function changes its signature and all the files in the system that use that function, need to be updated. 
+Change propagation is loosely defined as a file that is forced to change due to other files changing, and it's typically caused by [coupling](https://en.wikipedia.org/wiki/Coupling_%28computer_programming%29) (either logical or static). For instance, a function changes its signature and all the files in the system that use that function, need to be updated. 
 
 Therefore, given a list of files `Xs`, the model must output a list of files `y` that are likely to change.
 How exactly this is defined (and thus how the model is evaluated) is within the scope of this test and you are welcome to interpret it however you see fit.
@@ -25,18 +24,19 @@ However, do prioritize the report in case you do not manage to finish the code, 
 The `./data` folder contains data mined from a few repositories.
 
 Each CSV file contains the `git diffs` mined from a single repository. Every file has the following header:
-    - `parent_sha` the sha of the parent commit
-    - `child_sha` the sha of the child commit
-    - `old_file` the name of the file that changed in the parent commit
-    - `new_file` the name of the file that changed in the child commit (if it differs from `old_file` it means that the file was renamed
-    - `old_lines` number of lines deleted
-    - `new_lines` number of lines added/modified
-    - `old_author` author of the parent commit
-    - `new_author` author of the child commit
-    - `when` the date of the child commit
+
+- `parent_sha` the sha of the parent commit
+- `child_sha` the sha of the child commit
+- `old_file` the name of the file that changed in the parent commit
+- `new_file` the name of the file that changed in the child commit (if it differs from `old_file` it means that the file was renamed
+- `old_lines` number of lines deleted
+- `new_lines` number of lines added/modified
+- `old_author` author of the parent commit
+- `new_author` author of the child commit
+- `when` the date of the child commit
 
 Therefore, every "diff" represents the files that changed from one commit to the next. 
-For simplicity's sake, you can ignore renames.
+For simplicity's sake, you can ignore renames and deletions.
 
 The data belongs to three repositories:
 
@@ -57,5 +57,6 @@ tar xzf diffs.tar.gz
 ```
 
 then run the container using the handy `./run.sh`.
+You need Docker installed.
 
 The script will build the container and run `python main.py`. Any arguments passed to `run.sh` will be forwarded to your `main.py` script.
