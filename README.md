@@ -7,9 +7,11 @@ Applicants should fork this repository, complete the test, and submit the output
 ### Goal
 The goal is to *study*, design and implement a machine learning model that predicts change propagation in a software repository.
 
-Change propagation is loosely defined as a file that is forced to change due to other files changing, and it's typically caused by [coupling](https://en.wikipedia.org/wiki/Coupling_%28computer_programming%29) (either logical or static). For instance, a function changes its signature and all the files in the system that use that function, need to be updated. 
+Change propagation is loosely defined as a file that is forced to change due to another file changing.
 
-Therefore, given a list of files `Xs`, the model must output a list of files `y` that are likely to change.
+It's typically caused by [coupling](https://en.wikipedia.org/wiki/Coupling_%28computer_programming%29) (either logical or static). For instance, a function changes its signature, and, as a consequence, all the files in the system that use that function need to be updated. 
+
+Therefore, given a list of files `Xs`, the model must output a list of files `Ys` that are likely to change.
 How exactly this is defined (and thus how the model is evaluated) is within the scope of this test and you are welcome to interpret it however you see fit.
 
 ### Expected output
@@ -48,7 +50,7 @@ Feel free to filter out files with few changes or to **focus only on one** repos
 
 
 ## Instructions
-The repository contains a basic configuration that you can use as a staring point.
+The repository contains a basic configuration that you can use as a starting point.
 
 Unzip the data with the following commands
 ```bash
