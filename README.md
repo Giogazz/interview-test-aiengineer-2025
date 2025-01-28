@@ -1,7 +1,9 @@
 # Technical interview
 This repository contains the starting files for the technical interview for the AI Engineer applications at TXT Arcan.
 
-Applicants should fork this repository, complete the test, and submit the output to the hiring manager/HR contact.
+Applicants should fork this repository, complete the test, and submit the link to their solution to the hiring manager/HR contact.
+
+For any quetions related to the test, please contact `darius.sas _at_ arcan.tech`.
 
 ## The task
 ### Goal
@@ -16,7 +18,7 @@ How exactly this is defined (and thus how the model is evaluated) is within the 
 
 ### Expected output
 
-- A brief report (max 1000 words) explaining the key technical decisions taken to clean the data, design the ML model, and train and evaluate the model. You can save the report and all non-source code files must be in the `report` folder.
+- A brief report (max 1000 words) explaining the key technical decisions taken to clean the data, design the ML model, and train and evaluate the model. You can save the report and all non-source code files must be in the `report` folder. You can stick to an informal structure, like bullet points, if you wish.
 - A *dockerized* Python script that trains the ML model and evaluates it using the data provided.
 
 Please do not spend more than **4 hours** of work on this task. The report and the code have an equal weight during the evaluation of your submission.
