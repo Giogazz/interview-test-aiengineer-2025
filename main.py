@@ -36,12 +36,12 @@ def filter_dataset(df):
     #now drop parent_sha and parent_sha columns
     return df.drop(['parent_sha', 'child_sha'], axis=1)
 
-def comput_prob(instances, id_to_file):
+def comput_prob(instances, file_to_id):
     #count occurencies
     prob_mod_file = {}
     for instance in instances:
         for file in instance:
-            index = id_to_file[file]
+            index = file_to_id[file]
             if index not in prob_mod_file.keys():
                 prob_mod_file[index] = 1
             else:
@@ -59,7 +59,7 @@ def one_hot(num_features):
     sparse_vectors = np.diag(np.full(num_features, 1))
     return sparse_vectors
 
-def create_training_instances(instances, one_hot_file, unique_filepath, prob_mod_file, id_to_file, data_size):
+def create_training_instances(instances, one_hot_file, unique_filepath, prob_mod_file, file_to_id, data_size):
     #randomly create input instance and target instance
     x = np.empty([data_size, len(unique_filepath)], dtype=int)
     y = np.empty([data_size, len(unique_filepath)], dtype=int)
@@ -73,7 +73,7 @@ def create_training_instances(instances, one_hot_file, unique_filepath, prob_mod
             else:
                 num_file_mod = np.random.randint(1, len(instance)-1)
 
-            ids = [id_to_file[file] for file in instance]
+            ids = [file_to_id[file] for file in instance]
             file_mod = 0
             tmp_x = np.zeros([1, len(unique_filepath)])
             tmp_y = np.zeros([1, len(unique_filepath)])
@@ -95,10 +95,80 @@ def create_training_instances(instances, one_hot_file, unique_filepath, prob_mod
     print(f"All target instances have at least one mod file: {np.any(np.sum(y, axis=1)>=1)}")
     return x, y
 
+def split_data(x, y, data_size, n_test):
+    #split data
+    X_train = x[0:data_size-n_test]
+    Y_train = y[0:data_size-n_test]
+    X_test = x[data_size-n_test::]
+    Y_test = y[data_size-n_test::]
+
+    print(f"X_train shape: {X_train.shape}")
+    print(f"Y_train shape: {Y_train.shape}")
+    print(f"X_test shape: {X_test.shape}")
+    print(f"Y_test shape: {Y_test.shape}")
+
+    #ensure eache feature in the Y_train have at least one non-zero
+    if np.all(np.sum(Y_train, axis=0) >= 1) == False:
+        to_change = np.where(np.sum(Y_train, axis=0) == 0)
+        for col in to_change:
+            Y_train[np.random.randint(0, Y_train.shape[0]-1), col] = 1
+
+    print(f"All training features have been mod at leas on time: {np.all(np.sum(Y_train, axis=0) >= 1)}")
+    return X_train, Y_train, X_test, Y_test
+
+def model_train(X_train, Y_train, n_estimators, n_jobs):
+    #initialize the model
+    rf = RandomForestClassifier(n_estimators=n_estimators, n_jobs=n_jobs)
+
+    #train the model
+    rf.fit(X_train, Y_train)
+    return rf
+
+def test_model(rf, X_test, Y_test):
+    #compute model predictions
+    y_out = rf.predict_proba(X_test)
+    #take just the probabilty that the files need to be edited
+    y_out = np.array([probs[:, 1] for probs in y_out]).T
+
+    #compute the CrossEntropyLoss for all the model prediction
+    losses = [log_loss(Y_test[i, :], y_out[i, :], labels=[0, 1]) for i in range(Y_test.shape[0])]
+
+    #compute the mean
+    avg_loss = np.mean(losses)
+    print(f"Average Log Loss: {avg_loss}")
+
+    return y_out, losses
+
+def show_example(y_out, Y_test, losses, file_to_id, threshold):
+    #collect model prediction in a more readable way
+    file_to_mod = []
+    for pred in y_out:
+        sugg_mod_file = {list(file_to_id.keys())[index]: pred[index].item() for index in np.where(pred >= threshold)[0]}
+        file_to_mod.append(sugg_mod_file)
+
+    worst = losses.index(max(losses))
+    best = losses.index(min(losses))
+
+    print(f"\nLower loss (best) model prediction")
+    ref_list = [list(file_to_id.keys())[index] for index in np.where(Y_test[best] != 0)[0]]
+    print(f"\nReference files: {ref_list}")
+    print(f"\nPredicted files: {file_to_mod[best]}")
+
+    print(f"\n\nHigher loss (worst) model prediction")
+    ref_list = [list(file_to_id.keys())[index] for index in np.where(Y_test[worst] != 0)[0]]
+    if len(ref_list) <= 10:
+        print(f"\nReference files: {ref_list}")
+    else:
+        print(f"\nReference files truncated: {ref_list[:5]}...{ref_list[-5:]}")
+    print(f"\nPredicted files: {file_to_mod[worst]}")
+
+
 def main(data_path):
+    print("\n\nSTARTING\n\n")
     #read arguments
     n_estimators = args.n_estimators
     n_jobs = args.n_jobs
+    if n_jobs <= 0: n_jobs = -1
     data_size = args.data_size
     use_author = args.use_author
     dry_run = args.dry_run
@@ -107,10 +177,13 @@ def main(data_path):
     if dry_run: check_works()
 
     #import csv file
+    print(f"Reading dataset: {csv_path}")
     df = import_dataset(csv_path)
     print(f"Total dataset rows: {len(df)}")
     print(f"Total dataset columns: {len(df.columns)}")
 
+    #filtering the dataset
+    print(f"\nFilter the dataset")
     df_selected = filter_dataset(df)
 
     #get unique filepath
@@ -119,20 +192,30 @@ def main(data_path):
     print(f"Numbers of unique files: {num_filepath}")
 
     #map files to ids
-    id_to_file = {file: index for index,file in enumerate(unique_filepath)}
+    file_to_id = {file: index for index,file in enumerate(unique_filepath)}
     #create one-hot encoding for the filepath
     one_hot_file = one_hot(len(unique_filepath))
 
     instances = df_selected['old_file'].tolist()
     #compute the probability of a file to be changed when a commit is done
-    prob_mod_file = comput_prob(instances, id_to_file)
+    prob_mod_file = comput_prob(instances, file_to_id)
 
     #create input instances and their respective target
-    print(f"Creating {data_size} instances to train the model")
-    x, y = create_training_instances(instances, one_hot_file, unique_filepath, prob_mod_file, id_to_file, data_size)
+    print(f"\n\nCreating {data_size} instances to train the model")
+    x, y = create_training_instances(instances, one_hot_file, unique_filepath, prob_mod_file, file_to_id, data_size)
 
+    print(f"Split in train and test sets")
+    X_train, Y_train, X_test, Y_test = split_data(x, y, data_size, n_test=int(0.1*data_size))
 
+    print(f"\n\nTraining RadomForest with n_estimators={n_estimators} and n_jobs={n_jobs}")
+    rf = model_train(X_train, Y_train, n_estimators, n_jobs)
+    print("Done\n")
 
+    print(f"Test model performance over test_set")
+    y_out, losses = test_model(rf, X_test, Y_test)
+
+    print("Showing some predictions examples, where decision threshold is 50%")
+    show_example(y_out, Y_test, losses, file_to_id, 0.5)
 
 if __name__ == "__main__":
     #initialize parser
