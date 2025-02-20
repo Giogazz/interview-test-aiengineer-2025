@@ -104,12 +104,12 @@ For each prediction of the model, over the test set, the loss is computed and th
 
 The results obtained, with *n_estimators=5* and *data_size=10000*, for the two experiments are:
 
-- Average log loss without authors:
-- Average log loss with authors:
+- Average log loss without authors: `0.0479`
+- Average log loss with authors: `0.0403`
 
 
 
-The added authors information seems to help the model in the predictions.
+The authors information seems to help the model in the predictions.
 
 
 
