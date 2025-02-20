@@ -59,6 +59,66 @@ def one_hot(num_features):
     sparse_vectors = np.diag(np.full(num_features, 1))
     return sparse_vectors
 
+def author_data_prep(df):
+    #collect unique author names
+    unique_authorname = sorted(list(set(df['new_author'])))
+    #get author per instance
+    df_author_name = df['new_author'].tolist()
+
+    #map author names
+    unique_authorname_map = {
+        'Alessandro Tundo': 'Alessandro',
+        'Darius': 'Darius',
+        'Darius Daniel Sas': 'Darius',
+        'Darius Sas': 'Darius',
+        'Ilaria Pigazzini': 'Ilaria',
+        'Luca': 'Luca',
+        'Luca Belluzzi': 'Luca',
+        'LucaArcan': 'Luca'
+    }
+    #re-write author per instances with the map applied
+    author_mapped_instances = [unique_authorname_map[name] for name in df_author_name]
+    #create author_to_id
+    author_to_id = {name: index for index, name in enumerate(sorted(list(set(author_mapped_instances))))}
+
+    return author_mapped_instances, author_to_id
+
+def create_training_instances_with_author(instances, one_hot_file, unique_filepath, prob_mod_file, file_to_id, data_size, author_mapped_instances, author_to_id, sparse_vectors_author):
+    #randomly create input instance and target instance
+    x = np.empty([data_size, len(unique_filepath) + len(sparse_vectors_author)], dtype=int)
+    y = np.empty([data_size, len(unique_filepath)], dtype=int)
+
+    c = 0
+    while c < data_size-1:
+        for author, instance in zip(author_mapped_instances, instances):
+            if len(instance) == 1: continue
+            elif len(instance) == 2:
+                num_file_mod = 1
+            else:
+                num_file_mod = np.random.randint(1, len(instance)-1)
+
+            ids = [file_to_id[file] for file in instance]
+            file_mod = 0
+            tmp_x = np.zeros([1, len(unique_filepath)])
+            tmp_y = np.zeros([1, len(unique_filepath)])
+            while file_mod < num_file_mod:
+                id = np.random.choice(ids)
+                if random.random() > prob_mod_file[id]:
+                    tmp_x = tmp_x + one_hot_file[id]
+                    file_mod += 1
+                    ids.remove(id)
+
+            assert len(ids) > 0
+            tmp_y = np.sum(one_hot_file[ids],axis=0)
+            x[c] = np.hstack([tmp_x, sparse_vectors_author[author_to_id[author]].reshape(1, -1)])
+            y[c] = tmp_y
+            c+=1
+            if c > data_size-1: break
+
+    print(f"All training instances have at least one mod file: {np.any(np.sum(x, axis=1)>=1)}")
+    print(f"All target instances have at least one mod file: {np.any(np.sum(y, axis=1)>=1)}")
+    return x, y
+
 def create_training_instances(instances, one_hot_file, unique_filepath, prob_mod_file, file_to_id, data_size):
     #randomly create input instance and target instance
     x = np.empty([data_size, len(unique_filepath)], dtype=int)
@@ -170,6 +230,7 @@ def main(data_path):
     n_jobs = args.n_jobs
     if n_jobs <= 0: n_jobs = -1
     data_size = args.data_size
+    if data_size <=0 : print(f"Cannot create a dataset with {data_size} rows."); sys.exit()
     use_author = args.use_author
     dry_run = args.dry_run
     csv_path = '/data/arcan-2-develop-none.csv'
@@ -195,14 +256,24 @@ def main(data_path):
     file_to_id = {file: index for index,file in enumerate(unique_filepath)}
     #create one-hot encoding for the filepath
     one_hot_file = one_hot(len(unique_filepath))
-
+    #get files insatnces
     instances = df_selected['old_file'].tolist()
     #compute the probability of a file to be changed when a commit is done
     prob_mod_file = comput_prob(instances, file_to_id)
 
-    #create input instances and their respective target
-    print(f"\n\nCreating {data_size} instances to train the model")
-    x, y = create_training_instances(instances, one_hot_file, unique_filepath, prob_mod_file, file_to_id, data_size)
+    if use_author:
+        #pre-proc author column
+        author_mapped_instances, author_to_id = author_data_prep(df)
+        #get one-hot representation for authors
+        sparse_vectors_author = one_hot(len(author_to_id))
+
+        #create input instances and thier target vector with author information
+        print(f"\n\nCreating {data_size} instances to train the model with author information")
+        x, y = create_training_instances_with_author(instances, one_hot_file, unique_filepath, prob_mod_file, file_to_id, data_size, author_mapped_instances, author_to_id, sparse_vectors_author)
+    else:
+        #create input instances and their respective target
+        print(f"\n\nCreating {data_size} instances to train the model")
+        x, y = create_training_instances(instances, one_hot_file, unique_filepath, prob_mod_file, file_to_id, data_size)
 
     print(f"Split in train and test sets")
     X_train, Y_train, X_test, Y_test = split_data(x, y, data_size, n_test=int(0.1*data_size))
@@ -214,7 +285,7 @@ def main(data_path):
     print(f"Test model performance over test_set")
     y_out, losses = test_model(rf, X_test, Y_test)
 
-    print("Showing some predictions examples, where decision threshold is 50%")
+    print("\nShowing some predictions examples, where decision threshold is 50%")
     show_example(y_out, Y_test, losses, file_to_id, 0.5)
 
 if __name__ == "__main__":
