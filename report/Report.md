@@ -32,7 +32,7 @@ In this initial phase I load the dataset and compute some basic statistics over 
 - Number of uniques values for each column;
 - If any file has been renamed with a commit (e.g. different filenames between 'old_file' and 'new_file' columns);
 
-I decide to drop some columns to start with an easy scenario to get a baseline model. 
+I decide to drop some columns to start with an easy scenario and to get a baseline model. 
 Columns 'old_file' and 'new_file' were identical so, I use just one of the two. 
 The 'new_author' column has been selected instead of  the 'old_author' column because I find more informative who is making the commit instead of who was the last person that changed the file.
 
@@ -43,7 +43,7 @@ I use 'parent_sha' and 'child_sha' values to group the files that have been modi
 
 What I have at the end is a list of files for each commit and the author of the commit.
 
-To conclude the data exploration phase I plot two heatmap.
+To conclude the data exploration phase I plot two heatmaps.
 This plots are used to check (in a very basic way) if some files are more correlated than others and if some authors tend to work more on the same files.
 The resulting plots are not very intuitive. Anyway some brighter area can be seen in them, meaning that some sort of correlation between files-files and files-author could exists.
 
@@ -53,7 +53,7 @@ The resulting plots are not very intuitive. Anyway some brighter area can be see
 
 #### Data representation
 
-At this point I have groups of files which have been committed together + the commit author.
+At this point, I have groups of files which have been committed together + the commit author.
 
 One-hot encoding vectors are used to represent each file and each author. 
 This representation is one of the easiest. With it,  represent multiple files in the same compact vector is pretty straightforward due to the vector orthogonality (simple sum). 
@@ -65,7 +65,7 @@ Same is done for the authors, where we have vectors of 4 dimensions (for simplic
 #### Dataset creation
 
 The goal is to have a model that, given *N* input files, predicts *T* output files that probably required some modification.
-Before create my training/test instances I compute the probability that each single file is modified in a commit. A file that appears in more commit is a file that is edited more than the others. I want to preserve the original data distribution.
+Before create my training/test instances, I compute the probability that each single file is modified in a commit. A file that appears in more commit is a file that is edited more than the others. I want to preserve the original data distribution.
 
 After that I do the following steps:
 
@@ -98,9 +98,9 @@ Two experiments are run:
 
 
 The evaluation metrics used  is the *log_loss* of scikit_learn which corresponds to the *CrossEntropyLoss*.
-This metrics tells us how confident the model is to predict if a file needs to be modified or not given the input files.  A low loss value is better.
+This metrics tells us how confident the model is in the predictions.  A low loss value is better.
 
-For each prediction of the model, over the test set, the loss is computed and then the average between all the losses is performed. 
+For each prediction of the model over the test set the loss is computed and then the average between all the losses is performed. 
 
 The results obtained, with *n_estimators=5* and *data_size=10000*, for the two experiments are:
 
